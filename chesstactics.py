@@ -1,7 +1,11 @@
 import re
 import subprocess
-import pexpect
 import time
+import io
+
+import pexpect
+import chess.pgn
+import chess.engine
 
 class PGNFile:
     def __init__(self, filename, player):
@@ -17,60 +21,41 @@ class PGNFile:
 
 class ChessGame:
     def __init__(self, game, player):
+        self.pgn = io.StringIO(game)
+        self.game = chess.pgn.read_game(self.pgn)
         self.player = player
-        self.won = False
-        self.result = "0.5-0.5"
-        for line in game.split('\n'):
-            if line.startswith("1."):
-                self.moves = line
-            elif line.startswith("[White "):
-                self.white = re.search('".*"', line).group(0).replace('"', '')
-            elif line.startswith("[Black "):
-                self.black = re.search('".*"', line).group(0).replace('"', '')
-            elif line.startswith("[Result "):
-                self.result = re.search('".*"', line).group(0).replace('"', '')
-                if self.result == "0-1":
-                    if self.black == self.player:
-                        self.won = True
-                    self.winner = "B"
-                elif self.result == "1-0":
-                    if self.white == self.player:
-                        self.won = True
-                    self.winner = "W"
+        self.won = player in self.game.headers["Termination"]
+        self.blunders = []
 
     def __str__(self):
-        return "{} vs. {} {}".format(self.white, self.black, self.result)
+        return "{} vs. {} {}".format(self.game.headers["White"], self.game.headers["Black"], self.game.headers["Result"])
 
     def analyze(self):
-        print("Starting stockfish")
-        stockfish = pexpect.spawn("stockfish")
-        print(self.read_uci(stockfish))
-        print(stockfish.sendline("uci"))
-        print(self.read_uci(stockfish))
-        print(stockfish.sendline(b"isready"))
-        print(self.read_uci(stockfish))
-        print(self.get_moves())
-
-    def read_uci(self, engine):
-        time.sleep(0.1)
-        output = ""
-        try:
-            output = output.join(str(engine.read_nonblocking(size = 10000, timeout = 0)))
-        except pexpect.TIMEOUT:
-            return output
-        return output
-
-    def get_moves(self):
-        moves = re.findall('\d[\.]* ...', self.moves)
-        finalmoves = ""
-        for move in moves:
-            print(move)
-            finalmoves = " ".join([finalmoves, move[-3:].strip()])
-        return finalmoves
-        
+        engine = chess.engine.SimpleEngine.popen_uci("stockfish")
+        board = chess.Board()
+        last_score = None
+        for move in self.game.mainline():
+            info = engine.analyse(move.board(),
+                                  chess.engine.Limit(time=0.1),
+                                  info=chess.engine.INFO_ALL)
+            current_score = info["score"].white().score(mate_score=1000)
+            if(move.board().turn):
+                last_player = "Black"
+            else:
+                last_player = "White"
+            if last_score == None:
+                last_score = current_score
+            else:
+                if abs(last_score - current_score) > 100:
+                    if(self.game.headers[last_player] == self.player):
+                        self.blunders.append(move)
+            last_score = current_score
+            
+        engine.quit()
 
 if __name__ == "__main__":
     p = PGNFile("pgn", "Rulzern")
     game_gen = p.get_games()
     game = game_gen.__next__()
     game.analyze()
+    print(game.blunders)
