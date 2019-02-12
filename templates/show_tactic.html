@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+
+<html>
+
+    <head>
+        <link rel="stylesheet" href="static/css/chessboard-0.3.0.css"/>
+    </head>
+
+    <body>
+        <style type="text/css">
+            .highlight {
+                -webkit-box-shadow: inset 0 0 3px 3px yellow;
+                -moz-box-shadow: inset 0 0 3px 3px yellow;
+                box-shadow: inset 0 0 3px 3px yellow;
+            }
+        </style>
+
+        <script src="static/js/json3.min.js"></script>
+        <script src="static/js/jquery-1.10.1.min.js"></script>
+        <script src="static/js/chessboard-0.3.0.js"></script>
+
+        <div id="board" style="width: 400px"></div>
+
+        <script>
+            var init = function() {
+                var board_position_fen = "{{ fen_string }}";
+                var chessboard = ChessBoard('board', board_position_fen);
+                var highlightStart = "{{ bad_start }}";
+                var highlightStop = "{{ bad_stop }}";
+                $('#board').find('.square-' + highlightStart).addClass('highlight')
+                $('#board').find('.square-' + highlightStop).addClass('highlight')
+            };
+            $(document).ready(init);
+        </script>
+    </body>
+</html>
