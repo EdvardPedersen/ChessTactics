@@ -2,8 +2,9 @@ import re
 import subprocess
 import time
 import io
+import threading
+from urllib.request import urlopen
 
-import pexpect
 import chess.pgn
 import chess.engine
 
@@ -15,16 +16,24 @@ class PGNFile:
 
     def get_games(self):
         for game in self.file.split("[Event"):
+            print(game)
             if game == "":
                 continue
             yield ChessGame("[Event" + game, self.player)
+
+class ChessComDownload(PGNFile):
+    def __init__(self, player, year, month):
+        url = "https://api.chess.com/pub/player/{}/games/{}/{}/pgn".format(player, year, month)
+        self.file = urlopen(url).read().decode("utf-8")
+        print(self.file)
+        self.player = player
+
 
 class ChessGame:
     def __init__(self, game, player):
         self.pgn = io.StringIO(game)
         self.game = chess.pgn.read_game(self.pgn)
         self.player = player
-        self.won = player in self.game.headers["Termination"]
         self.blunders = []
 
     def __str__(self):
@@ -80,12 +89,26 @@ class Tactic:
             acceptable_moves = [(score, move) for score,move in moves if score < best_score + 30]
         engine.quit()
         self.acceptable_moves = acceptable_moves
-        
+
+def get_all_tactics(game, queue):
+    game.analyze()
+    for blunder in game.blunders:
+        blunder.get_correct_moves()
+    queue.append(game)
+
+
         
 if __name__ == "__main__":
-    p = PGNFile("pgn", "Rulzern")
+    p = ChessComDownload("Rulzern", "2019", "01")
     game_gen = p.get_games()
     game = game_gen.__next__()
-    game.analyze()
-    game.blunders[0].get_correct_moves()
+    games = []
+    threads = []
+    for game in game_gen:
+        t = threading.Thread(target = get_all_tactics, args = (game, games))
+        threads.append(t)
+        t.start()
+    for t in threads:
+        t.join()
+    print(games)
 

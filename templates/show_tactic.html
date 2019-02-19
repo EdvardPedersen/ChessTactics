@@ -22,13 +22,33 @@
         <div id="board" style="width: 400px"></div>
 
         <script>
+	
+            var onDrop = function(source, target, piece, newPos, oldPos, orientation) {
+		console.log("Entering ondrop");
+                var move = source + target;
+		console.log(move);
+		if ("{{ good_moves }}".indexOf(move) >= 0) {
+			console.log("Good move!");
+			window.location.replace("success");
+		} else {
+			console.log("Bad move!");
+			return 'snapback';
+		}
+	    };
+
+	    var board_cfg = {
+	        position: "{{ fen_string }}",
+	        draggable: true,
+	        onDrop: onDrop
+	    };
+	
             var init = function() {
-                var board_position_fen = "{{ fen_string }}";
-                var chessboard = ChessBoard('board', board_position_fen);
+                var chessboard = ChessBoard('board', board_cfg);
                 var highlightStart = "{{ bad_start }}";
                 var highlightStop = "{{ bad_stop }}";
                 $('#board').find('.square-' + highlightStart).addClass('highlight')
                 $('#board').find('.square-' + highlightStop).addClass('highlight')
+		console.log("Hello world");
             };
             $(document).ready(init);
         </script>

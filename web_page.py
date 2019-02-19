@@ -18,7 +18,15 @@ def get_tactics():
     move = current_game.blunders[0].move
     bad_move_start = move.move.uci()[:2]
     bad_move_stop = move.move.uci()[2:]
+    good_moves = current_game.blunders[0].acceptable_moves
+    acceptable_moves = ""
+    for a_move in good_moves:
+        acceptable_moves = acceptable_moves + a_move[1].uci() + " "
     board = move.parent.board()
     extracted_fen = board.fen()
     print(extracted_fen)
-    return render_template('show_tactic.html', fen_string=extracted_fen, bad_start = bad_move_start, bad_stop = bad_move_stop)
+    return render_template('show_tactic.html', fen_string=extracted_fen, bad_start = bad_move_start, bad_stop = bad_move_stop, good_moves = acceptable_moves)
+
+@app.route("/success")
+def good_work():
+    return "Real good work"
