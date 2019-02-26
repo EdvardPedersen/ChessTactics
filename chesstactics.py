@@ -4,6 +4,7 @@ import time
 import io
 import threading
 from urllib.request import urlopen
+import pickle
 
 import chess.pgn
 import chess.engine
@@ -16,7 +17,6 @@ class PGNFile:
 
     def get_games(self):
         for game in self.file.split("[Event"):
-            print(game)
             if game == "":
                 continue
             yield ChessGame("[Event" + game, self.player)
@@ -25,7 +25,6 @@ class ChessComDownload(PGNFile):
     def __init__(self, player, year, month):
         url = "https://api.chess.com/pub/player/{}/games/{}/{}/pgn".format(player, year, month)
         self.file = urlopen(url).read().decode("utf-8")
-        print(self.file)
         self.player = player
 
 
@@ -62,6 +61,18 @@ class ChessGame:
             
         engine.quit()
 
+    def get_simple(self):
+        key = str(self.game.end())
+        values = dict()
+        values["white"] = self.game.headers["White"]
+        values["black"] = self.game.headers["Black"]
+        values["player"] = self.player
+        blunders = []
+        for blunder in self.blunders:
+            blunders.append(blunder.get_simple_tactic())
+        return key, values, blunders
+        
+
 class Tactic:
     def __init__(self, move, score):
         self.move = move
@@ -90,6 +101,24 @@ class Tactic:
         engine.quit()
         self.acceptable_moves = acceptable_moves
 
+    def get_simple_tactic(self):
+        if len(self.acceptable_moves) < 1:
+            raise ValueError("No valid moves found for tactic")
+        position = self.move.parent.board().fen()
+        bad_move = self.move.uci()
+        good_moves = []
+        for move in self.acceptable_moves:
+            good_moves.append(move[1].uci())
+        score = self.score
+        return SimpleTactic(position, bad_move, good_moves, score)
+
+class SimpleTactic:
+    def __init__(self, position, bad_move, good_moves, score):
+        self.position = position
+        self.bad_move = bad_move
+        self.good_moves = good_moves
+        self.score = score
+
 def get_all_tactics(game, queue):
     game.analyze()
     for blunder in game.blunders:
@@ -99,16 +128,27 @@ def get_all_tactics(game, queue):
 
         
 if __name__ == "__main__":
+    with open("p_games", "rb") as f:
+        existing_games = pickle.load(f)
+    print(existing_games)
     p = ChessComDownload("Rulzern", "2019", "01")
     game_gen = p.get_games()
-    game = game_gen.__next__()
+    game_i = list(game_gen)
     games = []
     threads = []
-    for game in game_gen:
+    for game in game_i[0:1]:
+        if game.game.board().fen() in existing_games:
+            continue
         t = threading.Thread(target = get_all_tactics, args = (game, games))
         threads.append(t)
         t.start()
     for t in threads:
         t.join()
-    print(games)
+    pickled_games = dict()
+    for game in games:
+        key, values, blunders = game.get_simple()
+        pickled_games[key] = (values,blunders)
+    with open("p_games", "wb") as f:
+        pickle.dump(pickled_games, f)
+
 
