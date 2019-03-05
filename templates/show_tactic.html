@@ -3,7 +3,7 @@
 <html>
 
     <head>
-        <link rel="stylesheet" href="static/css/chessboard-0.3.0.css"/>
+        <link rel="stylesheet" href="../static/css/chessboard-0.3.0.css"/>
     </head>
 
     <body>
@@ -15,11 +15,19 @@
             }
         </style>
 
-        <script src="static/js/json3.min.js"></script>
-        <script src="static/js/jquery-1.10.1.min.js"></script>
-        <script src="static/js/chessboard-0.3.0.js"></script>
+	<script src="/static/js/json3.min.js"></script>
+        <script src="/static/js/jquery-1.10.1.min.js"></script>
+        <script src="/static/js/chessboard-0.3.0.js"></script>
 
         <div id="board" style="width: 400px"></div>
+        {% if player_name == black %}
+	<div id="white_name" style="position: absolute; left: 450px; top: 30px">{{white}}</div>
+	<div id="black_name" style="position: absolute; left: 450px; top: 350px">{{black}}</div>
+	{% else %}
+	<div id="white_name" style="position: absolute; left: 450px; top: 350px">{{white}}</div>
+	<div id="black_name" style="position: absolute; left: 450px; top: 30px">{{black}}</div>
+	{% endif %}
+
 
         <script>
 	
@@ -29,7 +37,7 @@
 		console.log(move);
 		if ("{{ good_moves }}".indexOf(move) >= 0) {
 			console.log("Good move!");
-			window.location.replace("/");
+			window.location.replace("/tactics/{{ player_name }}");
 		} else {
 			console.log("Bad move!");
 			return 'snapback';
@@ -39,7 +47,10 @@
 	    var board_cfg = {
 	        position: "{{ fen_string }}",
 	        draggable: true,
-	        onDrop: onDrop
+	        onDrop: onDrop,
+		{% if player_name == black %}
+		orientation: 'black'
+		{% endif %}
 	    };
 	
             var init = function() {
